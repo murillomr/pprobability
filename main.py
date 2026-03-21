@@ -19,11 +19,14 @@ def get_user_input(deck):
                 print("ERRO: Você deve inserir exatamente duas cartas.")
                 continue
             
-            # Pede a carta da mesa
-            flop_str = input("➡️ Digite a primeira carta da mesa (ex: QP): ")
+            # Pede as cartas da mesa (flop)
+            flop_str = input("➡️ Digite as três cartas da mesa (ex: AE KC QP): ").split()
+            if len(flop_str) != 3:
+                print("ERRO: Você deve inserir exatamente três cartas para a mesa.")
+                continue
 
             parsed_hand = [parse_card(c) for c in hand_str]
-            parsed_flop = [parse_card(flop_str)]
+            parsed_flop = [parse_card(c) for c in flop_str]
 
             if None in parsed_hand or None in parsed_flop:
                 print("ERRO: Formato de carta inválido. Use o formato RankNaipe (ex: 'AE', 'TP', '2O').")
@@ -67,55 +70,38 @@ def main():
 
     print("\nCalculando probabilidades...")
 
-    num_simulations = 50000  # Aumentar para mais precisão
-    good_hand_count = 0  # "Bom jogo" = Um Par ou melhor
+    num_simulations = 50000
+    hand_rank_counts = Counter()
 
-    # Avalia a mão atual de 3 cartas
-    # Com 3 cartas, não podemos formar uma mão completa de 5, então apenas checamos pares ou trincas.
-    initial_3_cards = my_cards + table_cards
-    initial_ranks = [RANK_MAP[r] for r, s in initial_3_cards]
-    initial_rank_counts = Counter(initial_ranks)
-
-    current_hand_rank = 0  # Carta Alta
-    if 3 in initial_rank_counts.values():
-        current_hand_rank = 3  # Trinca
-    elif 2 in initial_rank_counts.values():
-        current_hand_rank = 1  # Um Par
-
+    # Avalia a mão atual de 5 cartas (2 suas + 3 da mesa)
+    initial_5_cards = my_cards + table_cards
+    current_hand_rank, _ = get_best_hand(initial_5_cards)
 
     for _ in range(num_simulations):
-        # Embaralha o resto do baralho e completa a mesa
         simulation_deck = deck[:]
         random.shuffle(simulation_deck)
         
-        # O flop tem 3 cartas, uma já está na mesa. Faltam 2 para o flop + 1 turn + 1 river
-        remaining_table_cards = simulation_deck[:4]
+        # Pega as próximas 2 cartas (Turn e River)
+        remaining_table_cards = simulation_deck[:2]
         
         # Avalia a mão final de 7 cartas
         final_7_cards = my_cards + table_cards + remaining_table_cards
-        
-        # AQUI ESTÁ A CORREÇÃO PRINCIPAL:
-        # A simulação deve considerar as 4 cartas restantes para completar as 5 da mesa.
-        # No seu código original, estava pegando 4 cartas, mas o baralho já tinha sido modificado.
-        # A melhor abordagem é sempre trabalhar com uma cópia para cada simulação.
-        
         best_rank, _ = get_best_hand(final_7_cards)
-
-        # Consideramos "bom jogo" se for um par ou melhor (ranking > 0)
-        if best_rank > 0:
-            good_hand_count += 1
-
-    probability = good_hand_count / num_simulations
+        hand_rank_counts[best_rank] += 1
 
     print("\n--- Resultados ---")
     hand_names = ["Carta Alta", "Um Par", "Dois Pares", "Trinca", "Straight", "Flush", "Full House", "Quadra", "Straight Flush"]
     
-    current_hand_name = "Carta Alta"
-    if current_hand_rank > 0:
-        current_hand_name = hand_names[current_hand_rank]
+    print(f"Sua mão atual (com o flop): {hand_names[current_hand_rank]}")
+    print("\nProbabilidades de formar cada mão no final:")
 
-    print(f"Sua mão inicial com a carta da mesa: {current_hand_name}")
-    print(f"Probabilidade de terminar com no mínimo 'Um Par': {probability:.2%}")
+    # Imprime as probabilidades em ordem, da melhor para a pior
+    for rank in range(len(hand_names) - 1, 0, -1): # Começa de Straight Flush (8) até Um Par (1)
+        count = hand_rank_counts[rank]
+        if count > 0:
+            probability = count / num_simulations
+            print(f"- {hand_names[rank]:<15}: {probability:.2%}")
+
     print("\nNota: Este cálculo é para a sua mão. A probabilidade contra oponentes é mais complexa e não foi implementada.")
 
 
