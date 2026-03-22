@@ -1,60 +1,112 @@
 import random
 from collections import Counter
-from poker_core.cards import create_deck, parse_card, RANK_MAP
+from poker_core.cards import create_deck, parse_card
 from poker_core.hand_evaluation import get_best_hand
 
-# --- Lógica Principal e Simulação ---
+# --- Constantes ---
+HAND_NAMES = ["Carta Alta", "Um Par", "Dois Pares", "Trinca", "Straight", "Flush", "Full House", "Quadra", "Straight Flush"]
+NUM_SIMULATIONS = 50000
 
-def get_user_input(deck):
+# --- Lógica de Simulação e Apresentação ---
+
+def run_simulation(my_cards, table_cards, deck, num_cards_to_draw):
     """
-    Pega a entrada do usuário para suas cartas e a carta da mesa,
-    validando e removendo-as do baralho.
+    Executa uma simulação de Monte Carlo para calcular as probabilidades de mãos.
     """
-    my_cards, table_cards = [], []
+    hand_rank_counts = Counter()
+    for _ in range(NUM_SIMULATIONS):
+        simulation_deck = deck[:]
+        random.shuffle(simulation_deck)
+        
+        # Pega as próximas cartas da simulação (1 para o Turn, 1 para o River)
+        drawn_cards = simulation_deck[:num_cards_to_draw]
+        
+        # Avalia a mão final
+        final_cards = my_cards + table_cards + drawn_cards
+        best_rank, _ = get_best_hand(final_cards)
+        hand_rank_counts[best_rank] += 1
+        
+    return hand_rank_counts
+
+def print_probabilities(hand_rank_counts, num_simulations):
+    """
+    Imprime as probabilidades de cada mão a partir dos resultados da simulação.
+    """
+    # Imprime as probabilidades em ordem, da melhor para a pior
+    for rank in range(len(HAND_NAMES) - 1, 0, -1): # de Straight Flush (8) a Um Par (1)
+        count = hand_rank_counts[rank]
+        if count > 0:
+            probability = count / num_simulations
+            print(f"- {HAND_NAMES[rank]:<15}: {probability:.2%}")
+
+# --- Lógica de Entrada do Usuário ---
+
+def get_initial_cards(deck):
+    """
+    Pega as duas cartas do jogador e as três do flop, validando-as.
+    """
     while True:
         try:
-            # Pede as cartas do usuário
             hand_str = input("➡️ Digite suas duas cartas (ex: AE KC): ").split()
             if len(hand_str) != 2:
                 print("ERRO: Você deve inserir exatamente duas cartas.")
                 continue
             
-            # Pede as cartas da mesa (flop)
             flop_str = input("➡️ Digite as três cartas da mesa (ex: AE KC QP): ").split()
             if len(flop_str) != 3:
                 print("ERRO: Você deve inserir exatamente três cartas para a mesa.")
                 continue
 
-            parsed_hand = [parse_card(c) for c in hand_str]
-            parsed_flop = [parse_card(c) for c in flop_str]
+            my_cards = [parse_card(c) for c in hand_str]
+            table_cards = [parse_card(c) for c in flop_str]
 
-            if None in parsed_hand or None in parsed_flop:
-                print("ERRO: Formato de carta inválido. Use o formato RankNaipe (ex: 'AE', 'TP', '2O').")
+            if None in my_cards or None in table_cards:
+                print("ERRO: Formato de carta inválido. Use RankNaipe (ex: 'AE', 'TP', '2O').")
                 continue
 
-            my_cards = parsed_hand
-            table_cards = parsed_flop
-            
-            # Verifica se as cartas são únicas
             all_input_cards = my_cards + table_cards
             if len(set(all_input_cards)) != len(all_input_cards):
                 print("ERRO: Você inseriu cartas duplicadas.")
                 continue
             
-            # Remove as cartas do baralho
             for card in all_input_cards:
                 deck.remove(card)
             
             return my_cards, table_cards
 
         except ValueError:
-            print("ERRO: Carta não encontrada no baralho (pode já ter sido inserida). Tente novamente.")
-            # Reinicia o baralho para a próxima tentativa
-            deck = create_deck()
+            print("ERRO: Carta não encontrada no baralho. Tente novamente.")
+            deck = create_deck() # Reinicia o baralho
         except Exception as e:
             print(f"Ocorreu um erro inesperado: {e}")
             return [], []
 
+def get_turn_card(deck):
+    """
+    Pega a carta do turn, validando-a.
+    """
+    while True:
+        try:
+            turn_str = input("➡️ Digite a carta do Turn (ex: 7C): ")
+            if len(turn_str.split()) != 1:
+                print("ERRO: Você deve inserir exatamente uma carta.")
+                continue
+
+            turn_card = parse_card(turn_str)
+            if turn_card is None:
+                print("ERRO: Formato de carta inválido.")
+                continue
+            
+            deck.remove(turn_card)
+            return turn_card
+
+        except ValueError:
+            print("ERRO: Carta duplicada ou já está em jogo. Tente novamente.")
+        except Exception as e:
+            print(f"Ocorreu um erro inesperado: {e}")
+            return None
+
+# --- Fluxo Principal ---
 
 def main():
     """
@@ -63,46 +115,41 @@ def main():
     print("--- Calculadora de Probabilidades de Poker (Texas Hold'em) ---")
     
     deck = create_deck()
-    my_cards, table_cards = get_user_input(deck)
+    my_cards, table_cards = get_initial_cards(deck)
 
     if not my_cards:
         return
 
-    print("\nCalculando probabilidades...")
-
-    num_simulations = 50000
-    hand_rank_counts = Counter()
-
-    # Avalia a mão atual de 5 cartas (2 suas + 3 da mesa)
+    # --- ANÁLISE PÓS-FLOP ---
+    print("\n--- Análise Pós-Flop ---")
     initial_5_cards = my_cards + table_cards
     current_hand_rank, _ = get_best_hand(initial_5_cards)
+    print(f"Sua mão atual (com o flop): {HAND_NAMES[current_hand_rank]}")
 
-    for _ in range(num_simulations):
-        simulation_deck = deck[:]
-        random.shuffle(simulation_deck)
-        
-        # Pega as próximas 2 cartas (Turn e River)
-        remaining_table_cards = simulation_deck[:2]
-        
-        # Avalia a mão final de 7 cartas
-        final_7_cards = my_cards + table_cards + remaining_table_cards
-        best_rank, _ = get_best_hand(final_7_cards)
-        hand_rank_counts[best_rank] += 1
-
-    print("\n--- Resultados ---")
-    hand_names = ["Carta Alta", "Um Par", "Dois Pares", "Trinca", "Straight", "Flush", "Full House", "Quadra", "Straight Flush"]
+    print("\nCalculando probabilidades para o Turn...")
+    # Simula com 6 cartas (2 mão + 3 flop + 1 turn)
+    turn_hand_counts = run_simulation(my_cards, table_cards, deck, 1)
+    print("Probabilidades de formar cada mão no Turn:")
+    print_probabilities(turn_hand_counts, NUM_SIMULATIONS)
     
-    print(f"Sua mão atual (com o flop): {hand_names[current_hand_rank]}")
-    print("\nProbabilidades de formar cada mão no final:")
+    # --- ANÁLISE PÓS-TURN ---
+    print("\n--- Análise Pós-Turn ---")
+    turn_card = get_turn_card(deck)
+    if not turn_card:
+        return
 
-    # Imprime as probabilidades em ordem, da melhor para a pior
-    for rank in range(len(hand_names) - 1, 0, -1): # Começa de Straight Flush (8) até Um Par (1)
-        count = hand_rank_counts[rank]
-        if count > 0:
-            probability = count / num_simulations
-            print(f"- {hand_names[rank]:<15}: {probability:.2%}")
+    table_cards.append(turn_card)
+    current_6_cards = my_cards + table_cards
+    current_hand_rank, _ = get_best_hand(current_6_cards)
+    print(f"Sua mão atual (com o turn): {HAND_NAMES[current_hand_rank]}")
+    
+    print("\nCalculando probabilidades para o River...")
+    # Simula com 7 cartas (2 mão + 4 mesa + 1 river)
+    river_hand_counts = run_simulation(my_cards, table_cards, deck, 1)
+    print("Probabilidades de formar cada mão no River:")
+    print_probabilities(river_hand_counts, NUM_SIMULATIONS)
 
-    print("\nNota: Este cálculo é para a sua mão. A probabilidade contra oponentes é mais complexa e não foi implementada.")
+    print("\nNota: Este cálculo é para a sua mão. A probabilidade contra oponentes é mais complexa.")
 
 
 if __name__ == "__main__":
