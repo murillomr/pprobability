@@ -2,7 +2,7 @@ import itertools
 
 # --- Representação de Cartas e Baralho ---
 
-# Usamos um mapa para converter a entrada do usuário (letras) para os naipes
+# Mapa para conversão de entrada (letras) para os naipes
 # C = Copas (♥), O = Ouro (♦), P = Paus (♣), E = Espada (♠)
 SUIT_MAP = {'C': '♥', 'O': '♦', 'P': '♣', 'E': '♠'}
 SUITS = list(SUIT_MAP.values())
