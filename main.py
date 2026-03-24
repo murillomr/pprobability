@@ -124,7 +124,7 @@ def main():
     print("\n--- Análise Pós-Flop ---")
     initial_5_cards = my_cards + table_cards
     current_hand_rank, _ = get_best_hand(initial_5_cards)
-    print(f"Sua mão atual (com o flop): {HAND_NAMES[current_hand_rank]}")
+    print(f"Mão atual (com o flop): {HAND_NAMES[current_hand_rank]}")
 
     print("\nCalculando probabilidades para o Turn...")
     # Simula com 6 cartas (2 mão + 3 flop + 1 turn)
@@ -141,7 +141,7 @@ def main():
     table_cards.append(turn_card)
     current_6_cards = my_cards + table_cards
     current_hand_rank, _ = get_best_hand(current_6_cards)
-    print(f"Sua mão atual (com o turn): {HAND_NAMES[current_hand_rank]}")
+    print(f"Mão atual (com o turn): {HAND_NAMES[current_hand_rank]}")
     
     print("\nCalculando probabilidades para o River...")
     # Simula com 7 cartas (2 mão + 4 mesa + 1 river)
@@ -149,7 +149,7 @@ def main():
     print("Probabilidades de formar cada mão no River:")
     print_probabilities(river_hand_counts, NUM_SIMULATIONS)
 
-    print("\nNota: Este cálculo é para a sua mão. A probabilidade contra oponentes é mais complexa.")
+    print("\nNota: Este cálculo é para a mão atual.")
 
 
 if __name__ == "__main__":
